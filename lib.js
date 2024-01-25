@@ -473,6 +473,7 @@ const createByPackageXML = async (pkgData) => {
         await handleMovieclip(movieclipMap);
     }
 
+    console.log('start Components')
     let componentInfo = packageData["packageDescription"]['resources']['component'];
     if (componentInfo) {
         if (!Array.isArray(componentInfo)) componentInfo = [componentInfo];
@@ -485,6 +486,7 @@ const createByPackageXML = async (pkgData) => {
         })
         createFileByData(componentMap, ".xml");
     }
+    console.log('finish Components')
 
     deleteTemp(tempPath);
 }
@@ -681,6 +683,7 @@ const createByPackageBin = async (pkgData) => {
         await handleMovieclip(movieclipMap, false);
     }
 
+    console.log('start Components')
     let componentInfo = packageData["packageDescription"]['resources']['component'];
     if (componentInfo) {
         if (!Array.isArray(componentInfo)) componentInfo = [componentInfo];
@@ -689,9 +692,14 @@ const createByPackageBin = async (pkgData) => {
             item = componentInfo[i];
             let component = item['$'];
             let { id } = component;
-            let content = await decodeComponentData(UIPackage[id], files);
-            component['content'] = parseJSON2XML(content);
-            componentMap[id] = component;
+            try{
+                let content = await decodeComponentData(UIPackage[id], files);
+                component['content'] = parseJSON2XML(content);
+                componentMap[id] = component;
+            }
+            catch(e){
+                console.error(e)
+            }
         }
         // componentInfo.forEach((item) => {
         //     let component = item['$'];
@@ -702,6 +710,7 @@ const createByPackageBin = async (pkgData) => {
         // })
         createFileByData(componentMap, "");
     }
+    console.log('finish Components')
     deleteTemp(tempPath);
 }
 
@@ -1064,7 +1073,9 @@ async function decodeComponentData(contentItem, files) {
         nextPos += rawData.pos;
 
         rawData.seek(rawData.pos, 3);
-        if (!pi.children[i]) { debugger }
+        if (!pi.children[i]) { 
+		continue
+	}
         pi.children[i].relations = relationSetup(rawData, false); //relations.setup
 
         rawData.pos = nextPos;
@@ -1078,6 +1089,8 @@ async function decodeComponentData(contentItem, files) {
         nextPos += rawData.pos;
 
         child = pi.children[i];
+	    if (!child) continue
+
         // setup_afterAdd
         let type = child.type || child.objectType;
         let position = rawData.pos;
@@ -3066,6 +3079,7 @@ function parseDisplayList(parent) {
 }
 
 function parseObject(objectType, content, controllers) {
+    controllers = controllers || []
     let { align, vAlign, items } = content;
     let objectData = {}, extensionData = {}, item;
     switch (objectType) {
@@ -3245,7 +3259,7 @@ function parseObject(objectType, content, controllers) {
             }
             break
         case "List":
-            objectData = parseList(content);
+            objectData = parseList(content, controllers);
             item = [];
             items.forEach((ele) => {
                 item.push({
@@ -3254,7 +3268,7 @@ function parseObject(objectType, content, controllers) {
             });
             break;
         case "Tree":
-            objectData = parseList(content);
+            objectData = parseList(content, controllers);
             objectData.treeView = true;
             let { indent, clickToExpand } = content;
             objectData.indent = indent;
@@ -3506,7 +3520,7 @@ function parseExtension(type, extensionData) {
     return data;
 }
 
-function parseList(content) {
+function parseList(content, controllers) {
     let objectData = {};
     let { defaultItem,
         align, vAlign,
@@ -3644,13 +3658,14 @@ const handleSprites = async (spritesMap, flag = true, resFiles) => {
                     bitmap.writeAsync(output).then(() => {
                         resolve();
                     }).catch((err) => {
-                        reject(err)
+                        console.error(err)
+                        // reject(err)
                     });
                 })
                 .catch(err => {
                     // Handle an exception.
                     console.log(err);
-                    reject(err)
+                    // reject(err)
                 });
         })
     }
@@ -3710,7 +3725,7 @@ const handleAltas = (atlasInfo) => {
             return false;
         }
     })) {
-        throw "Atlas NOT FOUND!";
+        throw new Error("Atlas NOT FOUND!");
     }
 }
 
